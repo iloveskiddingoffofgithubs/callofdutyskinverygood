@@ -197,36 +197,46 @@ do
                 Name = "TabContentContainer"
             })
         })
+--// Dragability
+local isDragging = false
+local draggingOffset -- distance from top-left corner to mouse
 
-        --// Dragability
-        local isDragging = false
-        local draggingOffset --distance from topleft corner to mouse
+local function startDragging(mouse)
+    isDragging = true
+    local topLeft = MasterContainer.AbsolutePosition
+    draggingOffset = mouse - topLeft
+end
 
-        table.insert(connections, input.InputBegan:Connect(function(inp, gpe)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 and not gpe then
-                local mouse = input:GetMouseLocation() - inset
-                local topLeft = MasterContainer.AbsolutePosition
-                local bottomRight = topLeft + Vector2.new(MasterContainer.AbsoluteSize.X, 30) -- of topbar -> for click area
+local function stopDragging()
+    isDragging = false
+end
 
-                if mouse.X > topLeft.X and mouse.X < bottomRight.X then
-                    if mouse.Y > topLeft.Y and mouse.Y < bottomRight.Y then
-                        isDragging = true
-                        draggingOffset = mouse - topLeft
-                    end
-                end
-            end
-        end))
-        table.insert(connections, input.InputEnded:Connect(function(inp, gpe)
-            if isDragging and inp.UserInputType == Enum.UserInputType.MouseButton1 and not gpe  then
-                isDragging = false
-            end
-        end))
-        table.insert(connections, input.InputChanged:Connect(function(inp, gpe)
-            if isDragging and inp.UserInputType == Enum.UserInputType.MouseMovement and not gpe  then
-                local guiPos = input:GetMouseLocation() - draggingOffset - inset
-                MasterContainer.Position = UDim2.new(0, guiPos.X, 0, guiPos.Y)
-            end
-        end))
+-- Connect mouse input events
+table.insert(connections, input.InputBegan:Connect(function(inp, gpe)
+    if (inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch) and not gpe then
+        local mouse = input:GetMouseLocation() - inset
+        local topLeft = MasterContainer.AbsolutePosition
+        local bottomRight = topLeft + Vector2.new(MasterContainer.AbsoluteSize.X, 30) -- of topbar -> for click area
+
+        if mouse.X > topLeft.X and mouse.X < bottomRight.X and mouse.Y > topLeft.Y and mouse.Y < bottomRight.Y then
+            startDragging(mouse)
+        end
+    end
+end))
+
+table.insert(connections, input.InputEnded:Connect(function(inp, gpe)
+    if (isDragging and inp.UserInputType == Enum.UserInputType.MouseButton1) or (isDragging and inp.UserInputType == Enum.UserInputType.Touch) then
+        stopDragging()
+    end
+end))
+
+table.insert(connections, input.InputChanged:Connect(function(inp, gpe)
+    if isDragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) and not gpe then
+        local mouse = input:GetMouseLocation() - draggingOffset - inset
+        MasterContainer.Position = UDim2.new(0, mouse.X, 0, mouse.Y)
+    end
+end))
+
 
         --// External click "signal" -> Used for dropdowns to detect if someone clicks outside of the dropdown -> close dropdown
         local externalClickFunctions = {}
@@ -917,7 +927,7 @@ do
     function panel.AddSlider(panel, data)
         local callback = data.callback or EmptyFunction
         local self = interactable.new()
-        self.values = data.values or {min=0,max=100,default=50,round=3}
+        self.values = data.values or {min=0,max=100,default=50,round=1}
 
         local text = data.title
         local value = panel:_GlobalTable()
@@ -1642,5 +1652,5 @@ do
         }
     end
 end
---slider
+--drag
 return library
